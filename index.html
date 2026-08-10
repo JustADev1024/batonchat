@@ -162,19 +162,19 @@
 </div>
 
 <script>
-    // ----- Конфигурация (можно указать российские STUN-сервера) -----
+    // ----- Конфигурация -----
     const ICE_SERVERS = {
         iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },          // стандартный
-            { urls: 'stun:stun.voip.mail.ru:3478' },            // российский от Mail.ru
-            { urls: 'stun:stun.sipnet.ru:3478' }               // ещё один российский
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun.voip.mail.ru:3478' },
+            { urls: 'stun:stun.sipnet.ru:3478' }
         ]
     };
 
     // ----- Состояние -----
-    let pc = null;              // RTCPeerConnection
-    let dataChannel = null;     // канал данных
-    let isOfferer = false;     // true — мы создали offer, false — мы ответчик
+    let pc = null;
+    let dataChannel = null;
+    let isOfferer = false;
     let myName = '';
 
     // DOM
@@ -214,17 +214,12 @@
         }
         pc = new RTCPeerConnection(ICE_SERVERS);
 
-        // Обработка ICE-кандидатов — добавляем их в локальное описание
         pc.onicecandidate = (event) => {
             if (event.candidate) {
-                // Мы обновим SDP после сбора всех кандидатов (через таймаут)
-                // Но для простоты мы будем обновлять SDP после каждого кандидата
-                // Это не страшно, главное, чтобы в итоге был полный набор
                 updateLocalSDP();
             }
         };
 
-        // Отслеживаем состояние ICE
         pc.oniceconnectionstatechange = () => {
             const state = pc.iceConnectionState;
             if (state === 'connected' || state === 'completed') {
@@ -286,7 +281,7 @@
         msgInput.focus();
     }
 
-    // ----- Сброс всего -----
+    // ----- Сброс -----
     function resetAll() {
         if (pc) {
             pc.close();
@@ -304,13 +299,26 @@
         addMessage('🔄 Сброшено. Начните заново.', false);
     }
 
+    // ----- Очистка SDP от нестандартных строк -----
+    function cleanSDP(sdp) {
+        const lines = sdp.split('\n');
+        const filtered = lines.filter(line => {
+            const trimmed = line.trim();
+            // Удаляем строки, которые могут сломать парсер
+            if (trimmed.startsWith('a=max-message-size')) return false;
+            if (trimmed.startsWith('a=scpt-port')) return false;
+            // Можно добавить другие известные нестандартные атрибуты
+            return true;
+        });
+        return filtered.join('\n');
+    }
+
     // ----- Создать Offer -----
     document.getElementById('createOfferBtn').onclick = async () => {
         myName = myNameInput.value.trim() || 'Аноним';
-        resetAll(); // очищаем предыдущие соединения
+        resetAll();
 
         pc = createPeerConnection();
-        // Создаём канал данных (мы инициатор)
         dataChannel = pc.createDataChannel('chat');
         setupDataChannel(dataChannel);
         isOfferer = true;
@@ -327,20 +335,26 @@
         }
     };
 
-    // ----- Применить SDP собеседника (ответ на offer или входящий offer) -----
+    // ----- Применить SDP собеседника -----
     document.getElementById('applyRemoteBtn').onclick = async () => {
-        const remoteSDPText = remoteSDP.value.trim();
-        if (!remoteSDPText) {
+        let rawSDP = remoteSDP.value.trim();
+        if (!rawSDP) {
             alert('Вставьте SDP от собеседника');
             return;
         }
 
+        // Очищаем от нестандартных строк
+        const cleanedSDP = cleanSDP(rawSDP);
+        if (cleanedSDP !== rawSDP) {
+            remoteSDP.value = cleanedSDP;
+            alert('⚠️ Из SDP были удалены нестандартные строки (например, a=max-message-size). Попробуйте снова.');
+            return; // просим пользователя нажать ещё раз (теперь с очищенным)
+        }
+
         if (!pc) {
-            // Если pc нет, значит мы ещё не создали offer, значит мы будем отвечать на offer
-            // т.е. мы получатель (не инициатор)
+            // Мы ещё не создали PeerConnection, значит будем отвечать на offer
             myName = myNameInput.value.trim() || 'Аноним';
             pc = createPeerConnection();
-            // Ожидаем, что собеседник создаст канал
             pc.ondatachannel = (event) => {
                 setupDataChannel(event.channel);
             };
@@ -348,9 +362,8 @@
         }
 
         try {
-            // Определяем тип: если мы offerer, то пришёл answer, иначе — offer
             const type = isOfferer ? 'answer' : 'offer';
-            await pc.setRemoteDescription({ type: type, sdp: remoteSDPText });
+            await pc.setRemoteDescription({ type: type, sdp: cleanedSDP });
             setStatus('✅ Удалённое описание установлено', 'waiting');
             connStatus.textContent = 'Ожидание подключения...';
 
@@ -362,7 +375,6 @@
                 addMessage('📤 Ответ создан, отправьте его собеседнику.', false);
                 setStatus('📤 Ответ создан, скопируйте и отправьте', 'waiting');
             } else {
-                // Мы offerer — просто ждём, когда канал откроется
                 addMessage('✅ Ответ применён, ожидаем соединения...', false);
             }
         } catch (err) {
@@ -370,7 +382,7 @@
         }
     };
 
-    // ----- Отправка сообщения -----
+    // ----- Отправка -----
     sendBtn.onclick = sendMessage;
     msgInput.onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
 
@@ -382,4 +394,4 @@
 </script>
 
 </body>
-    </html>
+</html>
