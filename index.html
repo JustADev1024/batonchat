@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2P Чат (ручной)</title>
+    <title>P2P Чат (автообмен через Pastebin)</title>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -11,18 +11,13 @@
             background: #0f172a;
             color: #f1f5f9;
             padding: 20px;
-            max-width: 700px;
+            max-width: 600px;
             margin: auto;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
         }
-        h1 {
-            text-align: center;
-            font-weight: 400;
-            margin-bottom: 20px;
-            color: #a5b4fc;
-        }
+        h1 { text-align: center; font-weight: 400; color: #a5b4fc; }
         .card {
             background: #1e293b;
             border-radius: 16px;
@@ -30,13 +25,8 @@
             margin-bottom: 16px;
             border: 1px solid #334155;
         }
-        .row {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-        input, textarea, button {
+        .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+        input, button {
             background: #334155;
             border: none;
             border-radius: 8px;
@@ -46,9 +36,7 @@
             flex: 1;
             min-width: 100px;
         }
-        input:focus, textarea:focus {
-            outline: 2px solid #6366f1;
-        }
+        input:focus { outline: 2px solid #6366f1; }
         button {
             background: #6366f1;
             color: white;
@@ -57,23 +45,9 @@
             flex: 0 0 auto;
             transition: background 0.2s;
         }
-        button:hover {
-            background: #4f46e5;
-        }
-        button.secondary {
-            background: #475569;
-        }
-        button.secondary:hover {
-            background: #64748b;
-        }
-        textarea {
-            width: 100%;
-            height: 100px;
-            resize: vertical;
-            font-family: monospace;
-            font-size: 13px;
-            line-height: 1.5;
-        }
+        button:hover { background: #4f46e5; }
+        button.secondary { background: #475569; }
+        button.secondary:hover { background: #64748b; }
         #messages {
             background: #0f172a;
             border-radius: 12px;
@@ -89,76 +63,53 @@
             border-radius: 8px;
             background: #1e293b;
         }
-        .msg.me {
-            background: #312e81;
-            text-align: right;
-        }
+        .msg.me { background: #312e81; text-align: right; }
         .status {
             font-size: 14px;
-            color: #94a3b8;
-            padding: 6px 12px;
+            padding: 4px 12px;
             border-radius: 20px;
             display: inline-block;
         }
         .status.online { background: #22c55e; color: #052e16; }
         .status.offline { background: #ef4444; color: #450a0a; }
         .status.waiting { background: #eab308; color: #451a03; }
-        hr {
-            border: 0;
-            border-top: 1px solid #334155;
-            margin: 12px 0;
-        }
-        .label {
-            font-size: 13px;
-            color: #94a3b8;
-            margin-bottom: 4px;
-            display: block;
-        }
+        .label { font-size: 13px; color: #94a3b8; margin-bottom: 4px; display: block; }
+        .info-text { font-size: 13px; color: #94a3b8; margin-top: 8px; }
         .flex { display: flex; gap: 10px; flex-wrap: wrap; }
     </style>
 </head>
 <body>
 
-<h1>📡 P2P Чат (ручной обмен SDP)</h1>
+<h1>📡 P2P Чат (автообмен)</h1>
 
-<!-- 1. Настройка -->
 <div class="card">
     <div class="row">
         <input type="text" id="myName" placeholder="Ваше имя" value="Алиса">
-        <button id="createOfferBtn" class="primary">📤 Создать Offer</button>
-        <button id="resetBtn" class="secondary">⟳ Сбросить</button>
+        <button id="createOfferBtn" class="primary">📤 Создать чат</button>
+        <button id="joinBtn" class="secondary">🔗 Присоединиться</button>
+        <button id="resetBtn" class="secondary">⟳ Сброс</button>
     </div>
     <div style="margin-top: 10px;">
         <span id="statusBadge" class="status waiting">⏳ Ожидание</span>
+        <span id="connStatus" style="margin-left:16px; font-size:14px; color:#94a3b8;">Не подключено</span>
     </div>
-</div>
-
-<!-- 2. Обмен SDP -->
-<div class="card">
-    <div class="flex">
-        <div style="flex:1;">
-            <span class="label">📤 Ваш SDP (скопируйте и отправьте собеседнику)</span>
-            <textarea id="localSDP" placeholder="Здесь появится ваш SDP..."></textarea>
-        </div>
-        <div style="flex:1;">
-            <span class="label">📥 SDP собеседника (вставьте сюда)</span>
-            <textarea id="remoteSDP" placeholder="Вставьте SDP, полученный от собеседника..."></textarea>
-            <button id="applyRemoteBtn" style="width:100%; margin-top:8px;">Применить SDP собеседника</button>
+    <div style="margin-top: 8px;">
+        <span class="label">🔑 Код комнаты (введите при присоединении)</span>
+        <div class="row">
+            <input type="text" id="roomCode" placeholder="Например: abc123" value="chat1">
+            <button id="generateCodeBtn" class="secondary">🎲 Сгенерировать</button>
         </div>
     </div>
 </div>
 
-<!-- 3. Чат -->
 <div class="card" style="flex:1;">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-        <span>💬 Сообщения</span>
-        <span id="connStatus" style="font-size:14px; color:#94a3b8;">Не подключено</span>
-    </div>
+    <div>💬 Сообщения</div>
     <div id="messages"></div>
     <div class="row">
         <input type="text" id="msgInput" placeholder="Введите сообщение..." disabled>
         <button id="sendBtn" disabled>➤</button>
     </div>
+    <div class="info-text">Соединение устанавливается автоматически через публичные хранилища (pastebin)</div>
 </div>
 
 <script>
@@ -171,21 +122,27 @@
         ]
     };
 
+    // ----- Pastebin API (упрощённый) -----
+    // Используем rentry.co — бесплатный, работает в РФ
+    const PASTE_API = 'https://rentry.co/api/raw/'; // для чтения
+    const PASTE_URL = 'https://rentry.co/'; // для формирования ссылки
+
     // ----- Состояние -----
     let pc = null;
     let dataChannel = null;
     let isOfferer = false;
     let myName = '';
+    let roomId = '';
+    let pollInterval = null;
 
     // DOM
-    const localSDP = document.getElementById('localSDP');
-    const remoteSDP = document.getElementById('remoteSDP');
     const messagesDiv = document.getElementById('messages');
     const msgInput = document.getElementById('msgInput');
     const sendBtn = document.getElementById('sendBtn');
     const statusBadge = document.getElementById('statusBadge');
     const connStatus = document.getElementById('connStatus');
     const myNameInput = document.getElementById('myName');
+    const roomCodeInput = document.getElementById('roomCode');
 
     // ----- Вспомогательные функции -----
     function setStatus(text, type = 'waiting') {
@@ -201,22 +158,82 @@
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
-    function updateLocalSDP() {
-        if (pc && pc.localDescription) {
-            localSDP.value = pc.localDescription.sdp;
+    function enableChat(enabled) {
+        msgInput.disabled = !enabled;
+        sendBtn.disabled = !enabled;
+        if (enabled) msgInput.focus();
+    }
+
+    // ----- Работа с rentry.co -----
+    async function uploadToPaste(text, code) {
+        // Используем rentry.co API
+        const url = 'https://rentry.co/api/new';
+        const payload = {
+            url: code,         // если код занят, вернёт ошибку
+            text: text,
+            edit_code: code + '_edit' // простой пароль для редактирования
+        };
+        try {
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await resp.json();
+            if (data.status === 'success') {
+                return data.url; // например, "https://rentry.co/chat1"
+            } else {
+                throw new Error(data.message || 'Ошибка создания');
+            }
+        } catch (e) {
+            console.error('Upload error:', e);
+            throw e;
         }
     }
 
-    // ----- Создание PeerConnection -----
-    function createPeerConnection() {
-        if (pc) {
-            pc.close();
+    async function readPaste(code) {
+        const url = `https://rentry.co/api/raw/${code}`;
+        try {
+            const resp = await fetch(url);
+            if (resp.status === 404) return null;
+            const text = await resp.text();
+            return text;
+        } catch (e) {
+            console.error('Read error:', e);
+            return null;
         }
+    }
+
+    // ----- Очистка SDP от лишних строк -----
+    function cleanSDP(sdp) {
+        const lines = sdp.split('\n');
+        const filtered = lines.filter(line => {
+            const t = line.trim();
+            if (!t.startsWith('a=')) return true;
+            const keep = [
+                'a=group:', 'a=msid-semantic:', 'a=candidate:', 'a=ice-ufrag:',
+                'a=ice-pwd:', 'a=ice-options:', 'a=fingerprint:', 'a=setup:',
+                'a=extmap-allow-mixed', 'a=rtcp-mux'
+            ];
+            for (let prefix of keep) {
+                if (t.startsWith(prefix)) return true;
+            }
+            return false;
+        });
+        return filtered.join('\n');
+    }
+
+    // ----- WebRTC логика -----
+    function createPeerConnection() {
+        if (pc) pc.close();
         pc = new RTCPeerConnection(ICE_SERVERS);
 
         pc.onicecandidate = (event) => {
             if (event.candidate) {
-                updateLocalSDP();
+                // При появлении нового кандидата обновляем SDP и перезаписываем в pastebin
+                if (isOfferer && pc.localDescription) {
+                    uploadSDP(pc.localDescription.sdp);
+                }
             }
         };
 
@@ -225,13 +242,12 @@
             if (state === 'connected' || state === 'completed') {
                 setStatus('🔗 Соединение установлено', 'online');
                 connStatus.textContent = '✅ Подключено';
-                msgInput.disabled = false;
-                sendBtn.disabled = false;
+                enableChat(true);
+                stopPolling();
             } else if (state === 'disconnected' || state === 'failed') {
                 setStatus('❌ Соединение разорвано', 'offline');
                 connStatus.textContent = '❌ Разрыв';
-                msgInput.disabled = true;
-                sendBtn.disabled = true;
+                enableChat(false);
             } else {
                 connStatus.textContent = '⏳ ' + state;
             }
@@ -240,22 +256,20 @@
         return pc;
     }
 
-    // ----- Настройка канала данных -----
     function setupDataChannel(channel) {
         dataChannel = channel;
         dataChannel.onopen = () => {
-            addMessage('🔗 Канал данных открыт!', false);
+            addMessage('🔗 Канал открыт!', false);
             setStatus('🔗 Соединение установлено', 'online');
             connStatus.textContent = '✅ Подключено';
-            msgInput.disabled = false;
-            sendBtn.disabled = false;
+            enableChat(true);
+            stopPolling();
         };
         dataChannel.onclose = () => {
-            addMessage('❌ Канал данных закрыт', false);
+            addMessage('❌ Канал закрыт', false);
             setStatus('❌ Соединение разорвано', 'offline');
             connStatus.textContent = '❌ Разрыв';
-            msgInput.disabled = true;
-            sendBtn.disabled = true;
+            enableChat(false);
         };
         dataChannel.onmessage = (e) => {
             try {
@@ -266,6 +280,127 @@
             }
         };
     }
+
+    // ----- Загрузка SDP в pastebin -----
+    async function uploadSDP(sdp) {
+        const cleaned = cleanSDP(sdp);
+        try {
+            await uploadToPaste(cleaned, roomId);
+        } catch (e) {
+            console.error('Ошибка загрузки SDP:', e);
+        }
+    }
+
+    // ----- Опрос pastebin на наличие нового SDP -----
+    function startPolling() {
+        stopPolling();
+        pollInterval = setInterval(async () => {
+            const text = await readPaste(roomId);
+            if (!text) return;
+            // Проверяем, не наш ли это SDP (по отпечатку или содержимому)
+            if (pc && pc.localDescription) {
+                const local = cleanSDP(pc.localDescription.sdp);
+                if (text === local) return; // это наш собственный
+            }
+            // Это SDP другого участника
+            await handleRemoteSDP(text);
+        }, 3000); // каждые 3 секунды
+    }
+
+    function stopPolling() {
+        if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+        }
+    }
+
+    // ----- Обработка удалённого SDP -----
+    async function handleRemoteSDP(sdp) {
+        if (!pc) {
+            // Мы ещё не создали PeerConnection, значит мы получатель
+            myName = myNameInput.value.trim() || 'Аноним';
+            pc = createPeerConnection();
+            pc.ondatachannel = (event) => {
+                setupDataChannel(event.channel);
+            };
+            isOfferer = false;
+        }
+        try {
+            const type = isOfferer ? 'answer' : 'offer';
+            await pc.setRemoteDescription({ type: type, sdp: sdp });
+            if (!isOfferer) {
+                // Мы ответчик — создаём answer
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                await uploadSDP(answer.sdp);
+                addMessage('📤 Ответ отправлен, ожидаем соединения...', false);
+            } else {
+                addMessage('✅ Ответ получен, соединение устанавливается...', false);
+            }
+        } catch (err) {
+            console.error('Ошибка обработки SDP:', err);
+        }
+    }
+
+    // ----- Создание чата (инициатор) -----
+    document.getElementById('createOfferBtn').onclick = async () => {
+        myName = myNameInput.value.trim() || 'Аноним';
+        roomId = roomCodeInput.value.trim() || 'chat' + Date.now().toString(36);
+        roomCodeInput.value = roomId;
+        resetAll();
+
+        pc = createPeerConnection();
+        dataChannel = pc.createDataChannel('chat');
+        setupDataChannel(dataChannel);
+        isOfferer = true;
+
+        try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            await uploadSDP(offer.sdp);
+            setStatus('📤 Offer создан, ожидаем ответа...', 'waiting');
+            connStatus.textContent = 'Ожидание ответа';
+            addMessage(`🔑 Код комнаты: ${roomId}. Отправьте его собеседнику.`, false);
+            startPolling();
+        } catch (err) {
+            alert('Ошибка создания offer: ' + err.message);
+        }
+    };
+
+    // ----- Присоединиться к чату (получатель) -----
+    document.getElementById('joinBtn').onclick = async () => {
+        myName = myNameInput.value.trim() || 'Аноним';
+        roomId = roomCodeInput.value.trim();
+        if (!roomId) { alert('Введите код комнаты'); return; }
+        resetAll();
+
+        // Сначала читаем offer из pastebin
+        const offerSDP = await readPaste(roomId);
+        if (!offerSDP) {
+            alert('Не удалось найти комнату. Убедитесь, что код верный.');
+            return;
+        }
+        // Создаём PeerConnection
+        pc = createPeerConnection();
+        pc.ondatachannel = (event) => {
+            setupDataChannel(event.channel);
+        };
+        isOfferer = false;
+
+        try {
+            await pc.setRemoteDescription({ type: 'offer', sdp: offerSDP });
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            await uploadSDP(answer.sdp);
+            setStatus('📤 Ответ отправлен, ожидаем соединения...', 'waiting');
+            connStatus.textContent = 'Ожидание';
+            addMessage('📤 Ответ отправлен, ждём...', false);
+            // Запускаем опрос, чтобы получить изменения (хотя обычно не нужно)
+            startPolling();
+        } catch (err) {
+            alert('Ошибка при присоединении: ' + err.message);
+        }
+    };
 
     // ----- Отправка сообщения -----
     function sendMessage() {
@@ -278,120 +413,33 @@
         dataChannel.send(JSON.stringify({ name: myName, text }));
         addMessage(`${myName}: ${text}`, true);
         msgInput.value = '';
-        msgInput.focus();
     }
 
-    // ----- Сброс -----
-    function resetAll() {
-        if (pc) {
-            pc.close();
-            pc = null;
-        }
-        dataChannel = null;
-        isOfferer = false;
-        localSDP.value = '';
-        remoteSDP.value = '';
-        messagesDiv.innerHTML = '';
-        msgInput.disabled = true;
-        sendBtn.disabled = true;
-        setStatus('⏳ Ожидание', 'waiting');
-        connStatus.textContent = 'Не подключено';
-        addMessage('🔄 Сброшено. Начните заново.', false);
-    }
-
-    // ----- Очистка SDP от нестандартных строк -----
-    function cleanSDP(sdp) {
-        const lines = sdp.split('\n');
-        const filtered = lines.filter(line => {
-            const trimmed = line.trim();
-            // Удаляем строки, которые могут сломать парсер
-            if (trimmed.startsWith('a=max-message-size')) return false;
-            if (trimmed.startsWith('a=scpt-port')) return false;
-            // Можно добавить другие известные нестандартные атрибуты
-            return true;
-        });
-        return filtered.join('\n');
-    }
-
-    // ----- Создать Offer -----
-    document.getElementById('createOfferBtn').onclick = async () => {
-        myName = myNameInput.value.trim() || 'Аноним';
-        resetAll();
-
-        pc = createPeerConnection();
-        dataChannel = pc.createDataChannel('chat');
-        setupDataChannel(dataChannel);
-        isOfferer = true;
-
-        try {
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            updateLocalSDP();
-            setStatus('📤 Offer создан, скопируйте и передайте собеседнику', 'waiting');
-            connStatus.textContent = 'Ожидание ответа';
-            addMessage('📤 Отправьте ваш SDP собеседнику.', false);
-        } catch (err) {
-            alert('Ошибка создания offer: ' + err.message);
-        }
-    };
-
-    // ----- Применить SDP собеседника -----
-    document.getElementById('applyRemoteBtn').onclick = async () => {
-        let rawSDP = remoteSDP.value.trim();
-        if (!rawSDP) {
-            alert('Вставьте SDP от собеседника');
-            return;
-        }
-
-        // Очищаем от нестандартных строк
-        const cleanedSDP = cleanSDP(rawSDP);
-        if (cleanedSDP !== rawSDP) {
-            remoteSDP.value = cleanedSDP;
-            alert('⚠️ Из SDP были удалены нестандартные строки (например, a=max-message-size). Попробуйте снова.');
-            return; // просим пользователя нажать ещё раз (теперь с очищенным)
-        }
-
-        if (!pc) {
-            // Мы ещё не создали PeerConnection, значит будем отвечать на offer
-            myName = myNameInput.value.trim() || 'Аноним';
-            pc = createPeerConnection();
-            pc.ondatachannel = (event) => {
-                setupDataChannel(event.channel);
-            };
-            isOfferer = false;
-        }
-
-        try {
-            const type = isOfferer ? 'answer' : 'offer';
-            await pc.setRemoteDescription({ type: type, sdp: cleanedSDP });
-            setStatus('✅ Удалённое описание установлено', 'waiting');
-            connStatus.textContent = 'Ожидание подключения...';
-
-            if (!isOfferer) {
-                // Мы ответчик — создаём answer
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-                updateLocalSDP();
-                addMessage('📤 Ответ создан, отправьте его собеседнику.', false);
-                setStatus('📤 Ответ создан, скопируйте и отправьте', 'waiting');
-            } else {
-                addMessage('✅ Ответ применён, ожидаем соединения...', false);
-            }
-        } catch (err) {
-            alert('Ошибка применения SDP: ' + err.message);
-        }
-    };
-
-    // ----- Отправка -----
     sendBtn.onclick = sendMessage;
     msgInput.onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
 
     // ----- Сброс -----
+    function resetAll() {
+        if (pc) { pc.close(); pc = null; }
+        dataChannel = null;
+        isOfferer = false;
+        stopPolling();
+        messagesDiv.innerHTML = '';
+        enableChat(false);
+        setStatus('⏳ Ожидание', 'waiting');
+        connStatus.textContent = 'Не подключено';
+        // Не сбрасываем комнату
+    }
     document.getElementById('resetBtn').onclick = resetAll;
 
-    // Стартовое сообщение
-    addMessage('👋 Добро пожаловать! Нажмите "Создать Offer" (вы первый) или вставьте SDP собеседника, если вам прислали offer.', false);
-</script>
+    // ----- Генерация кода -----
+    document.getElementById('generateCodeBtn').onclick = () => {
+        const code = Math.random().toString(36).substring(2, 8);
+        roomCodeInput.value = code;
+    };
 
+    // Стартовое сообщение
+    addMessage('👋 Создайте чат (кнопка "Создать") и передайте код собеседнику.', false);
+</script>
 </body>
-</html>
+            </html>
