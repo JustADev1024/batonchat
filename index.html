@@ -1,17 +1,291 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BATONCHAT</title>
-    <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>P2P Чат</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f5f7fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 480px;
+            padding: 20px;
+            margin: 20px;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 16px;
+            text-align: center;
+            color: #1e293b;
+        }
+        #login {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        #login input,
+        #login button {
+            padding: 12px 16px;
+            font-size: 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            outline: none;
+        }
+        #login input:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+        #login button {
+            background: #6366f1;
+            color: white;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        #login button:hover {
+            background: #4f46e5;
+        }
+        #chat {
+            display: none;
+            flex-direction: column;
+            height: 70vh;
+        }
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .message {
+            background: #f1f5f9;
+            padding: 8px 12px;
+            border-radius: 8px;
+            max-width: 80%;
+            word-wrap: break-word;
+            align-self: flex-start;
+        }
+        .message.me {
+            background: #6366f1;
+            color: white;
+            align-self: flex-end;
+        }
+        .message .nick {
+            font-weight: 600;
+            font-size: 0.85em;
+            opacity: 0.8;
+            margin-right: 8px;
+        }
+        .message .time {
+            font-size: 0.7em;
+            opacity: 0.6;
+            margin-left: 8px;
+        }
+        .input-area {
+            display: flex;
+            gap: 8px;
+        }
+        .input-area input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+        }
+        .input-area input:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+        .input-area button {
+            padding: 10px 20px;
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .input-area button:hover {
+            background: #4f46e5;
+        }
+        .info {
+            text-align: center;
+            font-size: 0.85em;
+            color: #94a3b8;
+            margin-top: 8px;
+        }
+        .hidden {
+            display: none !important;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1 class="title" id="title">BATONCHAT</h1>
-        <p class="subtitle">Добро пожаловать!</p>
+
+<div class="container">
+    <h1>📡 P2P Чат</h1>
+
+    <!-- Экран входа -->
+    <div id="login">
+        <input type="text" id="nickInput" placeholder="Введите никнейм" autofocus />
+        <button id="loginBtn">Войти</button>
     </div>
-    
-    <script src="script.js"></script>
+
+    <!-- Экран чата -->
+    <div id="chat">
+        <div id="messages"></div>
+        <div class="input-area">
+            <input type="text" id="msgInput" placeholder="Напишите сообщение..." />
+            <button id="sendBtn">Отправить</button>
+        </div>
+        <div class="info">Сообщения синхронизируются между всеми участниками</div>
+    </div>
+</div>
+
+<!-- Подключаем Gun.js (децентрализованная база данных) -->
+<script src="https://cdn.jsdelivr.net/npm/gun@0.9.99/gun.js"></script>
+<script>
+    (function() {
+        // --- Инициализация Gun (используем публичные relay-серверы) ---
+        const gun = Gun({
+            peers: ['https://gun-manhattan.herokuapp.com/gun']
+        });
+
+        // Ссылка на коллекцию сообщений
+        const messagesRef = gun.get('p2p-chat-messages');
+
+        // --- Состояние ---
+        let myNick = '';
+        let messageCache = []; // храним { key, nick, text, time }
+
+        // --- DOM-элементы ---
+        const loginDiv = document.getElementById('login');
+        const chatDiv = document.getElementById('chat');
+        const nickInput = document.getElementById('nickInput');
+        const loginBtn = document.getElementById('loginBtn');
+        const msgInput = document.getElementById('msgInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const messagesContainer = document.getElementById('messages');
+
+        // --- Функция рендеринга сообщений ---
+        function renderMessages() {
+            messagesContainer.innerHTML = '';
+            // Сортируем по времени (старые сверху)
+            const sorted = [...messageCache].sort((a, b) => (a.time || 0) - (b.time || 0));
+            sorted.forEach(msg => {
+                const div = document.createElement('div');
+                div.className = 'message' + (msg.nick === myNick ? ' me' : '');
+                const nickSpan = document.createElement('span');
+                nickSpan.className = 'nick';
+                nickSpan.textContent = msg.nick + ':';
+                const textSpan = document.createElement('span');
+                textSpan.textContent = msg.text;
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'time';
+                const d = new Date(msg.time);
+                timeSpan.textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                div.appendChild(nickSpan);
+                div.appendChild(textSpan);
+                div.appendChild(timeSpan);
+                messagesContainer.appendChild(div);
+            });
+            // Прокрутка вниз
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // --- Подписка на новые сообщения (реактивное обновление) ---
+        // Используем .map().on() для отслеживания всех записей коллекции
+        messagesRef.map().on(function(data, key) {
+            if (!data) return; // удаление записи (игнорируем)
+            // Проверяем, есть ли уже такое сообщение в кеше
+            const exists = messageCache.some(m => m.key === key);
+            if (!exists) {
+                messageCache.push({
+                    key: key,
+                    nick: data.nick || 'Аноним',
+                    text: data.text || '',
+                    time: data.time || Date.now()
+                });
+                renderMessages();
+            }
+        });
+
+        // --- Функция отправки сообщения ---
+        function sendMessage() {
+            const text = msgInput.value.trim();
+            if (!text) return;
+            if (!myNick) {
+                alert('Сначала войдите в чат');
+                return;
+            }
+            const msg = {
+                nick: myNick,
+                text: text,
+                time: Date.now()
+            };
+            // Сохраняем в Gun (автоматически синхронизируется с другими)
+            messagesRef.set(msg);
+            msgInput.value = '';
+            msgInput.focus();
+        }
+
+        // --- Обработчик входа ---
+        function login() {
+            const nick = nickInput.value.trim();
+            if (!nick) {
+                alert('Введите никнейм');
+                return;
+            }
+            myNick = nick;
+            loginDiv.style.display = 'none';
+            chatDiv.style.display = 'flex';
+            msgInput.focus();
+            // Можно сохранить ник в localStorage (опционально)
+            localStorage.setItem('p2pChatNick', nick);
+        }
+
+        // --- События ---
+        loginBtn.addEventListener('click', login);
+        nickInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') login();
+        });
+
+        sendBtn.addEventListener('click', sendMessage);
+        msgInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // --- Восстановление ника из localStorage (опционально) ---
+        const savedNick = localStorage.getItem('p2pChatNick');
+        if (savedNick) {
+            nickInput.value = savedNick;
+            // Можно автоматически войти, но лучше оставить ручной вход
+        }
+
+        // --- Простой индикатор подключения (необязательно) ---
+        console.log('P2P Чат запущен. Используйте Gun.js для синхронизации.');
+    })();
+</script>
 </body>
-</html>
+        </html>
