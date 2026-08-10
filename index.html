@@ -3,399 +3,201 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>P2P Чат (Gun.js)</title>
+    <title>MQTT Чат</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            background: #0f172a;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 16px;
-        }
-        .container {
-            background: #1e293b;
-            border-radius: 20px;
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-            width: 100%;
-            max-width: 500px;
-            padding: 24px;
-            color: #e2e8f0;
-        }
-        h1 {
-            font-size: 26px;
-            font-weight: 600;
-            text-align: center;
-            margin-bottom: 20px;
-            color: #f1f5f9;
-        }
-        .status {
-            text-align: center;
-            font-size: 0.85rem;
-            padding: 6px 12px;
-            border-radius: 20px;
-            display: inline-block;
-            margin: 0 auto 16px;
-            background: #334155;
-        }
-        .status.online {
-            background: #22c55e;
-            color: #052e16;
-        }
-        .status.offline {
-            background: #ef4444;
-            color: #450a0a;
-        }
-        #login {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        #login input,
-        #login button {
-            padding: 14px 18px;
-            font-size: 16px;
-            border: none;
-            border-radius: 12px;
-            outline: none;
-            background: #334155;
-            color: #f1f5f9;
-        }
-        #login input::placeholder {
-            color: #94a3b8;
-        }
-        #login input:focus {
-            background: #475569;
-            box-shadow: 0 0 0 2px #6366f1;
-        }
-        #login button {
-            background: #6366f1;
-            color: white;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        #login button:hover {
-            background: #4f46e5;
-            transform: scale(1.02);
-        }
-        #chat {
-            display: none;
-            flex-direction: column;
-            height: 70vh;
-        }
-        #messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 12px 0;
-            margin-bottom: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            border-bottom: 1px solid #334155;
-        }
-        .message {
-            padding: 10px 14px;
-            border-radius: 14px;
-            max-width: 82%;
-            word-wrap: break-word;
-            background: #334155;
-            align-self: flex-start;
-            font-size: 15px;
-            line-height: 1.4;
-            position: relative;
-        }
-        .message.me {
-            background: #6366f1;
-            align-self: flex-end;
-            color: white;
-        }
-        .message .nick {
-            font-weight: 700;
-            font-size: 0.8rem;
-            opacity: 0.8;
-            display: block;
-            margin-bottom: 2px;
-        }
-        .message .time {
-            font-size: 0.65rem;
-            opacity: 0.5;
-            margin-left: 10px;
-            float: right;
-        }
-        .input-area {
-            display: flex;
-            gap: 10px;
-            margin-top: 4px;
-        }
-        .input-area input {
-            flex: 1;
-            padding: 12px 16px;
-            border: none;
-            border-radius: 30px;
-            background: #334155;
-            color: #f1f5f9;
-            font-size: 16px;
-            outline: none;
-        }
-        .input-area input::placeholder {
-            color: #94a3b8;
-        }
-        .input-area input:focus {
-            background: #475569;
-            box-shadow: 0 0 0 2px #6366f1;
-        }
-        .input-area button {
-            padding: 12px 24px;
-            background: #6366f1;
-            color: white;
-            border: none;
-            border-radius: 30px;
-            font-weight: 600;
-            font-size: 16px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .input-area button:hover {
-            background: #4f46e5;
-        }
-        .info {
-            text-align: center;
-            font-size: 0.75rem;
-            color: #94a3b8;
-            margin-top: 12px;
-        }
-        .hidden {
-            display: none !important;
-        }
-        /* Стилизация скроллбара */
-        #messages::-webkit-scrollbar {
-            width: 6px;
-        }
-        #messages::-webkit-scrollbar-track {
-            background: #1e293b;
-        }
-        #messages::-webkit-scrollbar-thumb {
-            background: #475569;
-            border-radius: 8px;
-        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: system-ui, sans-serif; background: #0f172a; display:flex; justify-content:center; align-items:center; min-height:100vh; padding:16px; }
+        .container { background: #1e293b; border-radius:20px; box-shadow:0 12px 40px rgba(0,0,0,0.5); width:100%; max-width:500px; padding:24px; color:#e2e8f0; }
+        h1 { font-size:26px; font-weight:600; text-align:center; margin-bottom:16px; }
+        .status { text-align:center; font-size:0.85rem; padding:6px 12px; border-radius:20px; display:inline-block; margin:0 auto 16px; background:#334155; }
+        .status.online { background:#22c55e; color:#052e16; }
+        .status.offline { background:#ef4444; color:#450a0a; }
+        #login { display:flex; flex-direction:column; gap:12px; }
+        #login input, #login button { padding:14px 18px; font-size:16px; border:none; border-radius:12px; outline:none; background:#334155; color:#f1f5f9; }
+        #login input::placeholder { color:#94a3b8; }
+        #login input:focus { background:#475569; box-shadow:0 0 0 2px #6366f1; }
+        #login button { background:#6366f1; color:#fff; font-weight:600; cursor:pointer; transition:.2s; }
+        #login button:hover { background:#4f46e5; }
+        #chat { display:none; flex-direction:column; height:70vh; }
+        #messages { flex:1; overflow-y:auto; padding:12px 0; margin-bottom:12px; display:flex; flex-direction:column; gap:8px; border-bottom:1px solid #334155; }
+        .message { padding:10px 14px; border-radius:14px; max-width:82%; word-wrap:break-word; background:#334155; align-self:flex-start; font-size:15px; line-height:1.4; }
+        .message.me { background:#6366f1; align-self:flex-end; color:#fff; }
+        .message .nick { font-weight:700; font-size:0.8rem; opacity:0.8; display:block; margin-bottom:2px; }
+        .message .time { font-size:0.65rem; opacity:0.5; margin-left:10px; float:right; }
+        .input-area { display:flex; gap:10px; margin-top:4px; }
+        .input-area input { flex:1; padding:12px 16px; border:none; border-radius:30px; background:#334155; color:#f1f5f9; font-size:16px; outline:none; }
+        .input-area input::placeholder { color:#94a3b8; }
+        .input-area input:focus { background:#475569; box-shadow:0 0 0 2px #6366f1; }
+        .input-area button { padding:12px 24px; background:#6366f1; color:#fff; border:none; border-radius:30px; font-weight:600; font-size:16px; cursor:pointer; transition:.2s; }
+        .input-area button:hover { background:#4f46e5; }
+        .info { text-align:center; font-size:0.75rem; color:#94a3b8; margin-top:12px; }
+        .hidden { display:none!important; }
+        #messages::-webkit-scrollbar { width:6px; }
+        #messages::-webkit-scrollbar-track { background:#1e293b; }
+        #messages::-webkit-scrollbar-thumb { background:#475569; border-radius:8px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>📡 P2P Чат</h1>
-        <div style="text-align: center;">
-            <span id="statusBadge" class="status offline">⏳ Подключение...</span>
-        </div>
+<div class="container">
+    <h1>📡 MQTT Чат</h1>
+    <div style="text-align:center;"><span id="statusBadge" class="status offline">⏳ Подключение...</span></div>
 
-        <!-- Вход -->
-        <div id="login">
-            <input type="text" id="nickInput" placeholder="Введите ваш никнейм" autofocus />
-            <button id="loginBtn">➜ Войти</button>
-        </div>
-
-        <!-- Чат -->
-        <div id="chat">
-            <div id="messages"></div>
-            <div class="input-area">
-                <input type="text" id="msgInput" placeholder="Введите сообщение..." />
-                <button id="sendBtn">➤</button>
-            </div>
-            <div class="info">Сообщения синхронизируются через децентрализованную сеть</div>
-        </div>
+    <div id="login">
+        <input type="text" id="nickInput" placeholder="Введите никнейм" autofocus />
+        <button id="loginBtn">➜ Войти</button>
     </div>
 
-    <!-- Подключаем Gun.js -->
-    <script src="https://cdn.jsdelivr.net/npm/gun@0.9.99/gun.js"></script>
-    <script>
-        (function() {
-            'use strict';
+    <div id="chat">
+        <div id="messages"></div>
+        <div class="input-area">
+            <input type="text" id="msgInput" placeholder="Сообщение..." />
+            <button id="sendBtn">➤</button>
+        </div>
+        <div class="info">Сообщения передаются через публичный MQTT брокер</div>
+    </div>
+</div>
 
-            // === 1. Инициализация Gun с несколькими relay-серверами ===
-            const gun = Gun({
-                peers: [
-                    'https://gun-manhattan.herokuapp.com/gun',
-                    'https://gun-us.herokuapp.com/gun',
-                    'https://gun-eu.herokuapp.com/gun',
-                    'https://gun-relay.zinc.work/gun'  // дополнительный надежный
-                ],
-                // Таймаут для определения "живости" соединения
-                wait: 2000
-            });
+<!-- Подключаем MQTT клиент (Paho) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+<script>
+(function() {
+    // === Конфигурация ===
+    const BROKER_HOST = 'broker.hivemq.com';
+    const BROKER_PORT = 8000; // WebSocket порт
+    const TOPIC = 'p2p-chat-demo'; // общий топик
 
-            // Ссылка на коллекцию сообщений (одна на всех)
-            const messagesRef = gun.get('p2p-chat-v2');
+    let client = null;
+    let myNick = '';
+    let messageCache = [];
+    let isConnected = false;
 
-            // === 2. Состояние ===
-            let myNick = '';
-            let messageCache = []; // массив { key, nick, text, time }
-            let isOnline = false;
+    // DOM
+    const loginDiv = document.getElementById('login');
+    const chatDiv = document.getElementById('chat');
+    const nickInput = document.getElementById('nickInput');
+    const loginBtn = document.getElementById('loginBtn');
+    const msgInput = document.getElementById('msgInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const messagesContainer = document.getElementById('messages');
+    const statusBadge = document.getElementById('statusBadge');
 
-            // === 3. DOM-элементы ===
-            const loginDiv = document.getElementById('login');
-            const chatDiv = document.getElementById('chat');
-            const nickInput = document.getElementById('nickInput');
-            const loginBtn = document.getElementById('loginBtn');
-            const msgInput = document.getElementById('msgInput');
-            const sendBtn = document.getElementById('sendBtn');
-            const messagesContainer = document.getElementById('messages');
-            const statusBadge = document.getElementById('statusBadge');
+    // === Вспомогательные функции ===
+    function setStatus(online) {
+        isConnected = online;
+        if (online) {
+            statusBadge.textContent = '🟢 Онлайн';
+            statusBadge.className = 'status online';
+        } else {
+            statusBadge.textContent = '🔴 Офлайн (переподключение...)';
+            statusBadge.className = 'status offline';
+        }
+    }
 
-            // === 4. Функция обновления статуса ===
-            function setStatus(online) {
-                isOnline = online;
-                if (online) {
-                    statusBadge.textContent = '🟢 Онлайн';
-                    statusBadge.className = 'status online';
-                } else {
-                    statusBadge.textContent = '🔴 Офлайн (переподключение...)';
-                    statusBadge.className = 'status offline';
-                }
-            }
+    function renderMessages() {
+        messagesContainer.innerHTML = '';
+        const sorted = [...messageCache].sort((a,b) => a.time - b.time);
+        sorted.forEach(msg => {
+            const div = document.createElement('div');
+            div.className = 'message' + (msg.nick === myNick ? ' me' : '');
+            div.innerHTML = `
+                <span class="nick">${msg.nick}:</span>
+                <span>${msg.text}</span>
+                <span class="time">${new Date(msg.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+            `;
+            messagesContainer.appendChild(div);
+        });
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
 
-            // === 5. Проверка подключения (пингуем gun) ===
-            function checkConnection() {
-                // Просто попробуем получить что-то из gun
-                gun.get('__ping__').put({ ping: Date.now() }, function(ack) {
-                    if (ack && ack.err) {
-                        setStatus(false);
-                    } else {
-                        setStatus(true);
-                    }
-                });
-                // Повторяем каждые 10 секунд
-                setTimeout(checkConnection, 10000);
-            }
+    // === Подключение к MQTT ===
+    function connectMqtt() {
+        client = new Paho.MQTT.Client(BROKER_HOST, BROKER_PORT, 'client_' + Date.now());
 
-            // === 6. Рендеринг сообщений ===
-            function renderMessages() {
-                messagesContainer.innerHTML = '';
-                const sorted = [...messageCache].sort((a, b) => (a.time || 0) - (b.time || 0));
-                sorted.forEach(msg => {
-                    const div = document.createElement('div');
-                    div.className = 'message' + (msg.nick === myNick ? ' me' : '');
-                    const nickSpan = document.createElement('span');
-                    nickSpan.className = 'nick';
-                    nickSpan.textContent = msg.nick + ':';
-                    const textSpan = document.createElement('span');
-                    textSpan.textContent = msg.text;
-                    const timeSpan = document.createElement('span');
-                    timeSpan.className = 'time';
-                    const d = new Date(msg.time);
-                    timeSpan.textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    div.appendChild(nickSpan);
-                    div.appendChild(textSpan);
-                    div.appendChild(timeSpan);
-                    messagesContainer.appendChild(div);
-                });
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            }
+        client.onConnectionLost = function(response) {
+            setStatus(false);
+            console.warn('Потеря соединения', response);
+            // пытаемся переподключиться через 5 секунд
+            setTimeout(connectMqtt, 5000);
+        };
 
-            // === 7. Подписка на новые сообщения (реактивно) ===
-            // Используем .map().on() для всех записей коллекции
-            messagesRef.map().on(function(data, key) {
-                if (!data) return; // удаление записи
-                // Проверяем, есть ли уже в кеше
-                const exists = messageCache.some(m => m.key === key);
+        client.onMessageArrived = function(message) {
+            if (message.destinationName !== TOPIC) return;
+            try {
+                const data = JSON.parse(message.payloadString);
+                const exists = messageCache.some(m => m.id === data.id);
                 if (!exists) {
                     messageCache.push({
-                        key: key,
-                        nick: data.nick || 'Аноним',
-                        text: data.text || '',
-                        time: data.time || Date.now()
+                        id: data.id,
+                        nick: data.nick,
+                        text: data.text,
+                        time: data.time
                     });
                     renderMessages();
                 }
-            });
+            } catch(e) {
+                console.warn('Неверный формат сообщения', e);
+            }
+        };
 
-            // Также обрабатываем событие "ошибка" для отображения статуса
-            gun.on('error', function(err) {
-                console.warn('Gun error:', err);
-                setStatus(false);
-            });
-
-            // При успешной синхронизации - онлайн
-            gun.on('hi', function() {
+        client.connect({
+            onSuccess: function() {
                 setStatus(true);
-            });
+                client.subscribe(TOPIC);
+                console.log('Подключено к MQTT брокеру');
+            },
+            onFailure: function(err) {
+                setStatus(false);
+                console.error('Ошибка подключения MQTT', err);
+                setTimeout(connectMqtt, 5000);
+            },
+            useSSL: true,
+            timeout: 10
+        });
+    }
 
-            // === 8. Отправка сообщения ===
-            function sendMessage() {
-                const text = msgInput.value.trim();
-                if (!text) return;
-                if (!myNick) {
-                    alert('Сначала войдите в чат.');
-                    return;
-                }
-                if (!isOnline) {
-                    alert('Нет подключения к сети. Попробуйте позже.');
-                    return;
-                }
-                const msg = {
-                    nick: myNick,
-                    text: text,
-                    time: Date.now()
-                };
-                messagesRef.set(msg, function(ack) {
-                    if (ack && ack.err) {
-                        console.error('Ошибка отправки:', ack.err);
-                        alert('Не удалось отправить сообщение. Проверьте соединение.');
-                    } else {
-                        msgInput.value = '';
-                        msgInput.focus();
-                    }
-                });
-            }
+    // === Отправка сообщения ===
+    function sendMessage() {
+        const text = msgInput.value.trim();
+        if (!text || !myNick || !isConnected) {
+            if (!isConnected) alert('Нет подключения к сети.');
+            return;
+        }
+        const msg = {
+            id: Date.now() + '-' + Math.random().toString(36).substr(2,6),
+            nick: myNick,
+            text: text,
+            time: Date.now()
+        };
+        const payload = JSON.stringify(msg);
+        const mqttMsg = new Paho.MQTT.Message(payload);
+        mqttMsg.destinationName = TOPIC;
+        client.send(mqttMsg);
+        msgInput.value = '';
+        msgInput.focus();
+    }
 
-            // === 9. Вход ===
-            function login() {
-                const nick = nickInput.value.trim();
-                if (!nick) {
-                    alert('Введите никнейм');
-                    return;
-                }
-                myNick = nick;
-                loginDiv.style.display = 'none';
-                chatDiv.style.display = 'flex';
-                msgInput.focus();
-                localStorage.setItem('p2pChatNick', nick);
-                // при входе сразу проверяем статус
-                checkConnection();
-            }
+    // === Вход ===
+    function login() {
+        const nick = nickInput.value.trim();
+        if (!nick) { alert('Введите никнейм'); return; }
+        myNick = nick;
+        loginDiv.style.display = 'none';
+        chatDiv.style.display = 'flex';
+        msgInput.focus();
+        localStorage.setItem('mqttChatNick', nick);
+        connectMqtt(); // стартуем подключение
+    }
 
-            // === 10. Обработчики событий ===
-            loginBtn.addEventListener('click', login);
-            nickInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') login();
-            });
+    // === Обработчики ===
+    loginBtn.addEventListener('click', login);
+    nickInput.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+    sendBtn.addEventListener('click', sendMessage);
+    msgInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
 
-            sendBtn.addEventListener('click', sendMessage);
-            msgInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') sendMessage();
-            });
-
-            // === 11. Восстановление ника из localStorage ===
-            const savedNick = localStorage.getItem('p2pChatNick');
-            if (savedNick) {
-                nickInput.value = savedNick;
-                // Можно автоматически войти, но оставим ручной
-            }
-
-            // === 12. Запуск проверки подключения после загрузки ===
-            setTimeout(checkConnection, 1000);
-
-            // Логируем для отладки
-            console.log('P2P Чат запущен. Используется Gun.js с несколькими relay-серверами.');
-            console.log('Если статус "Офлайн" — проверьте интернет или замените relay-адреса.');
-
-        })();
-    </script>
+    // Восстанавливаем ник
+    const savedNick = localStorage.getItem('mqttChatNick');
+    if (savedNick) nickInput.value = savedNick;
+})();
+</script>
 </body>
 </html>
