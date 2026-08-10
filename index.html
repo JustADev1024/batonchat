@@ -10,22 +10,20 @@
             font-family: 'Segoe UI', system-ui, sans-serif;
             background: #0f172a;
             color: #f1f5f9;
-            padding: 20px;
+            padding: 16px;
             max-width: 600px;
             margin: auto;
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
         }
         h1 { text-align: center; font-weight: 400; color: #a5b4fc; }
         .card {
             background: #1e293b;
             border-radius: 16px;
-            padding: 16px 20px;
-            margin-bottom: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
             border: 1px solid #334155;
         }
-        .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+        .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
         input, button {
             background: #334155;
             border: none;
@@ -34,7 +32,7 @@
             padding: 10px 14px;
             font-size: 15px;
             flex: 1;
-            min-width: 100px;
+            min-width: 80px;
         }
         input:focus { outline: 2px solid #6366f1; }
         button {
@@ -48,14 +46,16 @@
         button:hover { background: #4f46e5; }
         button.secondary { background: #475569; }
         button.secondary:hover { background: #64748b; }
+        button.success { background: #22c55e; }
+        button.success:hover { background: #16a34a; }
         #messages {
             background: #0f172a;
             border-radius: 12px;
             padding: 12px;
-            height: 300px;
+            height: 280px;
             overflow-y: auto;
             border: 1px solid #334155;
-            margin: 10px 0;
+            margin: 8px 0;
         }
         .msg {
             padding: 6px 12px;
@@ -86,10 +86,10 @@
     <div class="row">
         <input type="text" id="myName" placeholder="Ваше имя" value="Алиса">
         <button id="createOfferBtn" class="primary">📤 Создать чат</button>
-        <button id="joinBtn" class="secondary">🔗 Присоединиться</button>
+        <button id="joinBtn" class="success">🔗 Присоединиться</button>
         <button id="resetBtn" class="secondary">⟳ Сброс</button>
     </div>
-    <div style="margin-top: 10px;">
+    <div style="margin-top: 8px;">
         <span id="statusBadge" class="status waiting">⏳ Ожидание</span>
         <span id="connStatus" style="margin-left:16px; font-size:14px; color:#94a3b8;">Не подключено</span>
     </div>
@@ -109,7 +109,7 @@
         <input type="text" id="msgInput" placeholder="Введите сообщение..." disabled>
         <button id="sendBtn" disabled>➤</button>
     </div>
-    <div class="info-text">Соединение устанавливается автоматически через публичные хранилища (pastebin)</div>
+    <div class="info-text">Соединение устанавливается автоматически через rentry.co (pastebin-сервис)</div>
 </div>
 
 <script>
@@ -122,10 +122,9 @@
         ]
     };
 
-    // ----- Pastebin API (упрощённый) -----
-    // Используем rentry.co — бесплатный, работает в РФ
-    const PASTE_API = 'https://rentry.co/api/raw/'; // для чтения
-    const PASTE_URL = 'https://rentry.co/'; // для формирования ссылки
+    // ----- API rentry.co -----
+    const RENTRY_API = 'https://rentry.co/api';
+    const RENTRY_RAW = 'https://rentry.co/api/raw';
 
     // ----- Состояние -----
     let pc = null;
@@ -134,6 +133,7 @@
     let myName = '';
     let roomId = '';
     let pollInterval = null;
+    let lastSDP = ''; // чтобы не обрабатывать повторно
 
     // DOM
     const messagesDiv = document.getElementById('messages');
@@ -144,7 +144,7 @@
     const myNameInput = document.getElementById('myName');
     const roomCodeInput = document.getElementById('roomCode');
 
-    // ----- Вспомогательные функции -----
+    // ----- Вспомогательные -----
     function setStatus(text, type = 'waiting') {
         statusBadge.textContent = text;
         statusBadge.className = 'status ' + type;
@@ -165,46 +165,40 @@
     }
 
     // ----- Работа с rentry.co -----
-    async function uploadToPaste(text, code) {
-        // Используем rentry.co API
-        const url = 'https://rentry.co/api/new';
+    async function uploadToRentry(code, text) {
+        const url = `${RENTRY_API}/new`;
         const payload = {
-            url: code,         // если код занят, вернёт ошибку
+            url: code,
             text: text,
-            edit_code: code + '_edit' // простой пароль для редактирования
+            edit_code: code + '_edit'
         };
-        try {
-            const resp = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const data = await resp.json();
-            if (data.status === 'success') {
-                return data.url; // например, "https://rentry.co/chat1"
-            } else {
-                throw new Error(data.message || 'Ошибка создания');
-            }
-        } catch (e) {
-            console.error('Upload error:', e);
-            throw e;
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (data.status === 'success') {
+            return data.url; // например, "https://rentry.co/chat1"
+        } else {
+            throw new Error(data.message || 'Ошибка загрузки');
         }
     }
 
-    async function readPaste(code) {
-        const url = `https://rentry.co/api/raw/${code}`;
+    async function readFromRentry(code) {
+        const url = `${RENTRY_RAW}/${code}`;
         try {
             const resp = await fetch(url);
             if (resp.status === 404) return null;
-            const text = await resp.text();
-            return text;
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            return await resp.text();
         } catch (e) {
-            console.error('Read error:', e);
+            console.error('Ошибка чтения:', e);
             return null;
         }
     }
 
-    // ----- Очистка SDP от лишних строк -----
+    // ----- Очистка SDP от проблемных строк -----
     function cleanSDP(sdp) {
         const lines = sdp.split('\n');
         const filtered = lines.filter(line => {
@@ -230,9 +224,10 @@
 
         pc.onicecandidate = (event) => {
             if (event.candidate) {
-                // При появлении нового кандидата обновляем SDP и перезаписываем в pastebin
+                // После сбора кандидатов обновляем SDP и загружаем
                 if (isOfferer && pc.localDescription) {
-                    uploadSDP(pc.localDescription.sdp);
+                    const sdp = cleanSDP(pc.localDescription.sdp);
+                    uploadToRentry(roomId, sdp).catch(e => console.warn('Не удалось обновить SDP', e));
                 }
             }
         };
@@ -281,30 +276,21 @@
         };
     }
 
-    // ----- Загрузка SDP в pastebin -----
-    async function uploadSDP(sdp) {
-        const cleaned = cleanSDP(sdp);
-        try {
-            await uploadToPaste(cleaned, roomId);
-        } catch (e) {
-            console.error('Ошибка загрузки SDP:', e);
-        }
-    }
-
-    // ----- Опрос pastebin на наличие нового SDP -----
+    // ----- Опрос -----
     function startPolling() {
         stopPolling();
         pollInterval = setInterval(async () => {
-            const text = await readPaste(roomId);
-            if (!text) return;
-            // Проверяем, не наш ли это SDP (по отпечатку или содержимому)
+            const sdp = await readFromRentry(roomId);
+            if (!sdp || sdp === lastSDP) return;
+            lastSDP = sdp;
+            // Проверяем, не наш ли это SDP (по отпечатку)
             if (pc && pc.localDescription) {
                 const local = cleanSDP(pc.localDescription.sdp);
-                if (text === local) return; // это наш собственный
+                if (sdp === local) return;
             }
-            // Это SDP другого участника
-            await handleRemoteSDP(text);
-        }, 3000); // каждые 3 секунды
+            // Это чужой SDP — применяем
+            await handleRemoteSDP(sdp);
+        }, 3000);
     }
 
     function stopPolling() {
@@ -329,16 +315,18 @@
             const type = isOfferer ? 'answer' : 'offer';
             await pc.setRemoteDescription({ type: type, sdp: sdp });
             if (!isOfferer) {
-                // Мы ответчик — создаём answer
+                // Мы ответчик — создаём answer и загружаем
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
-                await uploadSDP(answer.sdp);
+                const cleaned = cleanSDP(answer.sdp);
+                await uploadToRentry(roomId, cleaned);
                 addMessage('📤 Ответ отправлен, ожидаем соединения...', false);
             } else {
                 addMessage('✅ Ответ получен, соединение устанавливается...', false);
             }
         } catch (err) {
             console.error('Ошибка обработки SDP:', err);
+            addMessage('❌ Ошибка при обмене SDP: ' + err.message, false);
         }
     }
 
@@ -357,13 +345,17 @@
         try {
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
-            await uploadSDP(offer.sdp);
+            const cleaned = cleanSDP(offer.sdp);
+            // Загружаем offer
+            await uploadToRentry(roomId, cleaned);
             setStatus('📤 Offer создан, ожидаем ответа...', 'waiting');
             connStatus.textContent = 'Ожидание ответа';
             addMessage(`🔑 Код комнаты: ${roomId}. Отправьте его собеседнику.`, false);
+            lastSDP = cleaned;
             startPolling();
         } catch (err) {
             alert('Ошибка создания offer: ' + err.message);
+            resetAll();
         }
     };
 
@@ -374,8 +366,8 @@
         if (!roomId) { alert('Введите код комнаты'); return; }
         resetAll();
 
-        // Сначала читаем offer из pastebin
-        const offerSDP = await readPaste(roomId);
+        // Читаем offer
+        const offerSDP = await readFromRentry(roomId);
         if (!offerSDP) {
             alert('Не удалось найти комнату. Убедитесь, что код верный.');
             return;
@@ -391,14 +383,16 @@
             await pc.setRemoteDescription({ type: 'offer', sdp: offerSDP });
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-            await uploadSDP(answer.sdp);
+            const cleaned = cleanSDP(answer.sdp);
+            await uploadToRentry(roomId, cleaned);
             setStatus('📤 Ответ отправлен, ожидаем соединения...', 'waiting');
             connStatus.textContent = 'Ожидание';
             addMessage('📤 Ответ отправлен, ждём...', false);
-            // Запускаем опрос, чтобы получить изменения (хотя обычно не нужно)
+            lastSDP = cleaned;
             startPolling();
         } catch (err) {
             alert('Ошибка при присоединении: ' + err.message);
+            resetAll();
         }
     };
 
@@ -424,11 +418,11 @@
         dataChannel = null;
         isOfferer = false;
         stopPolling();
+        lastSDP = '';
         messagesDiv.innerHTML = '';
         enableChat(false);
         setStatus('⏳ Ожидание', 'waiting');
         connStatus.textContent = 'Не подключено';
-        // Не сбрасываем комнату
     }
     document.getElementById('resetBtn').onclick = resetAll;
 
@@ -442,4 +436,4 @@
     addMessage('👋 Создайте чат (кнопка "Создать") и передайте код собеседнику.', false);
 </script>
 </body>
-            </html>
+</html>
